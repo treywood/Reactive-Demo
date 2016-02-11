@@ -9,7 +9,7 @@ let outputText = $("#output");
 
 function loadLanguages() {
   TranslateService.getLanguages().then(languages => {
-    let choices = languages.map(x => $(`<option value="${x.language}">${x.name}</option>"`));
+    let choices = languages.map(x => $(`<option value="${x.language}">${x.name}</option>`));
     languageOptions.html(choices);
     languageOptions.prepend('<option value=""></option>');
   });
