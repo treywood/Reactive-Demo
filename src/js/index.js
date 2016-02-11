@@ -7,30 +7,29 @@ let submitButton = $("#submitButton");
 let inputText = $("#englishInput");
 let outputText = $("#output");
 
-let availableLanguagesStream =
-  Rx.Observable.fromEvent(refreshButton, "click").startWith("")
-  .flatMap(() => TranslateService.getLanguages());
+function loadLanguages() {
+  TranslateService.getLanguages().then(languages => {
+    let choices = languages.map(x => $(`<option value="${x.language}">${x.name}</option>"`));
+    languageOptions.html(choices);
+    languageOptions.prepend('<option value=""></option>');
+  });
+}
 
-let languagesSubscriber = availableLanguagesStream.subscribe(languages => {
-  let choices = languages.map(lang => $(`<option value="${lang.language}">${lang.name}</option>`));
-  languageOptions.html(choices);
-  languageOptions.prepend(`<option value=""></option>`);
-});
+function doTranslate() {
+  let language = languageOptions.val();
+  let input = inputText.val();
+  TranslateService.translateText('en', language, input).then(translatedText => {
+    outputText.text(translatedText);
+    inputText.val("");
+  });
+}
 
-// UI Streams
-let targetLanguageStream = Rx.Observable.fromEvent(languageOptions, "change").pluck("target", "value");
-let inputTextStream = Rx.Observable.fromEvent(inputText, "keydown").pluck("target", "value").distinctUntilChanged();
+refreshButton.on("click", loadLanguages);
+loadLanguages();
 
-let buttonClickStream = Rx.Observable.fromEvent(submitButton, "click");
-let enterKeyStream = Rx.Observable.fromEvent(inputText, "keydown").filter(e => e.keyCode === 13);
-
-let translationStream =
-  Rx.Observable.merge(buttonClickStream, enterKeyStream)
-  .withLatestFrom(targetLanguageStream, (e, lang) => lang)
-  .withLatestFrom(inputTextStream)
-  .flatMap(([language, input]) => TranslateService.translateText('en', language, input));
-
-let translationSubscriber = translationStream.subscribe(translatedText => {
-  outputText.html(translatedText);
-  inputText.val("");
+submitButton.on("click", doTranslate);
+inputText.on("keydown", e => {
+  if (e.keyCode === 13) {
+    doTranslate();
+  }
 });
