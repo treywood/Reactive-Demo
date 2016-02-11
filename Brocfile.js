@@ -11,7 +11,8 @@ var appJs = babel(new ES6Modules("src/js", {
   }
 }));
 
-var libs = funnel('src/js', { include: ["lib/**.*js"]});
+appJs = funnel(appJs, { destDir: 'js' });
+var libs = funnel('src', { include: ["js/lib/**.*js"]});
 var index = funnel('src', { files: ["index.html"] });
 
 module.exports = mergeTrees([index, libs, appJs]);
