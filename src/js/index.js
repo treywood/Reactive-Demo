@@ -7,22 +7,22 @@ let submitButton = $("#submitButton");
 let inputText = $("#englishInput");
 let outputText = $("#output");
 
-
 // Input Value Streams
 let targetLanguageStream = Rx.Observable.fromEvent(languageOptions, "change").pluck("target", "value");
 let inputTextStream = Rx.Observable.fromEvent(inputText, "keydown").pluck("target", "value").distinctUntilChanged();
 
 // Trigger Streams
-let buttonClickStream = Rx.Observable.fromEvent(submitButton, "click");
+let submitButtonClickStream = Rx.Observable.fromEvent(submitButton, "click");
 let enterKeyStream = Rx.Observable.fromEvent(inputText, "keydown").filter(e => e.keyCode === 13);
+let refreshButtonClickStream = Rx.Observable.fromEvent(refreshButton, "click");
 
 // Data Streams
 let availableLanguagesStream =
-  Rx.Observable.fromEvent(refreshButton, "click").startWith("")
+  refreshButtonClickStream.startWith("")
   .flatMap(() => TranslateService.getLanguages());
 
 let translationStream =
-  Rx.Observable.merge(buttonClickStream, enterKeyStream)
+  Rx.Observable.merge(submitButtonClickStream, enterKeyStream)
   .withLatestFrom(targetLanguageStream, _.nthArg(1))
   .withLatestFrom(inputTextStream)
   .flatMap(([language, input]) => TranslateService.translateText('en', language, input));
