@@ -23,7 +23,7 @@ let availableLanguagesStream =
 
 let translationStream =
   Rx.Observable.merge(buttonClickStream, enterKeyStream)
-  .withLatestFrom(targetLanguageStream, (e, lang) => lang)
+  .withLatestFrom(targetLanguageStream, _.nthArg(1))
   .withLatestFrom(inputTextStream)
   .flatMap(([language, input]) => TranslateService.translateText('en', language, input));
 
