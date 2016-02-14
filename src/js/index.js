@@ -17,12 +17,10 @@ let enterKeyStream = Rx.Observable.fromEvent(inputText, "keydown").filter(e => e
 let refreshButtonClickStream = Rx.Observable.fromEvent(refreshButton, "click");
 
 // Data Streams
-let availableLanguagesStream =
-  refreshButtonClickStream.startWith("")
+let availableLanguagesStream = refreshButtonClickStream.startWith("")
   .flatMap(() => TranslateService.getLanguages());
 
-let translationStream =
-  Rx.Observable.merge(submitButtonClickStream, enterKeyStream)
+let translationStream = Rx.Observable.merge(submitButtonClickStream, enterKeyStream)
   .withLatestFrom(targetLanguageStream, _.nthArg(1))
   .withLatestFrom(inputTextStream)
   .flatMap(([language, input]) => TranslateService.translateText('en', language, input));
