@@ -6,10 +6,12 @@ let refreshButton = $("#refreshButton");
 let submitButton = $("#submitButton");
 let inputText = $("#englishInput");
 let outputText = $("#output");
+let checkbox = $("#autoTranslateCheckbox");
 
 // Input Value Streams
 let targetLanguageStream = Rx.Observable.fromEvent(languageOptions, "change").pluck("target", "value");
-let inputTextStream = Rx.Observable.fromEvent(inputText, "keydown").pluck("target", "value").distinctUntilChanged();
+let inputTextStream = Rx.Observable.fromEvent(inputText, "keyup").pluck("target", "value").distinctUntilChanged();
+let autoTranslateStream = Rx.Observable.fromEvent(checkbox, "change").pluck("target", "checked");
 
 // Trigger Streams
 let submitButtonClickStream = Rx.Observable.fromEvent(submitButton, "click");
@@ -20,7 +22,18 @@ let refreshButtonClickStream = Rx.Observable.fromEvent(refreshButton, "click");
 let availableLanguagesStream = refreshButtonClickStream.startWith(void 0)
   .flatMap(() => TranslateService.getLanguages().delay(1000));
 
-let translationStream = Rx.Observable.merge(submitButtonClickStream, enterKeyStream)
+let translatingStream =
+  autoTranslateStream.startWith(false).map(checked => {
+    if (checked) {
+      return inputTextStream.debounce(1000);
+    } else {
+      return Rx.Observable.merge(submitButtonClickStream, enterKeyStream);
+    }
+  })
+  .switch()
+
+let translationStream =
+  translatingStream
   .withLatestFrom(targetLanguageStream, _.nthArg(1))
   .withLatestFrom(inputTextStream)
   .flatMap(([language, input]) => TranslateService.translateText('en', language, input).delay(1000));
@@ -38,11 +51,15 @@ let languagesLoadedSubscriber = availableLanguagesStream.subscribe(languages => 
   languageOptions.prop('disabled', false);
 });
 
-let translatingSubscriber = Rx.Observable.merge(submitButtonClickStream, enterKeyStream).subscribe(() => {
+let translatingSubscriber = translatingStream.subscribe(() => {
   outputText.html(`<strong>Translating...</strong>`);
 });
 
 let translatedSubscriber = translationStream.subscribe(translatedText => {
   outputText.html(translatedText);
   inputText.val("");
+});
+
+let autoTranslateSubscriber = autoTranslateStream.subscribe(checked => {
+  submitButton.prop("disabled", checked);
 });
