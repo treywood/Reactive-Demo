@@ -8,58 +8,39 @@ let inputText = $("#englishInput");
 let outputText = $("#output");
 let checkbox = $("#autoTranslateCheckbox");
 
-// Input Value Streams
-let targetLanguageStream = Rx.Observable.fromEvent(languageOptions, "change").pluck("target", "value");
-let inputTextStream = Rx.Observable.fromEvent(inputText, "keyup").pluck("target", "value").distinctUntilChanged();
-let autoTranslateStream = Rx.Observable.fromEvent(checkbox, "change").pluck("target", "checked");
+// Input Values
+let targetLanguage = Rx.Observable.fromEvent(languageOptions, "change").pluck("target", "value");
+let inputString = Rx.Observable.fromEvent(inputText, "keyup").pluck("target", "value").distinctUntilChanged();
+let autoTranslate = Rx.Observable.fromEvent(checkbox, "change").pluck("target", "checked");
 
-// Trigger Streams
-let submitButtonClickStream = Rx.Observable.fromEvent(submitButton, "click");
-let enterKeyStream = Rx.Observable.fromEvent(inputText, "keydown").filter(e => e.keyCode === 13);
-let refreshButtonClickStream = Rx.Observable.fromEvent(refreshButton, "click");
+// UI Events
+let submitButtonClick = Rx.Observable.fromEvent(submitButton, "click");
+let enterKeyPress = Rx.Observable.fromEvent(inputText, "keydown").filter(e => e.keyCode === 13);
+let refreshButtonClick = Rx.Observable.fromEvent(refreshButton, "click");
 
 // Data Streams
-let availableLanguagesStream = refreshButtonClickStream.startWith(void 0)
-  .flatMap(() => TranslateService.getLanguages().delay(1000));
+let availableLanguages =
+  refreshButtonClick.startWith(void 0).flatMapLatest(() => TranslateService.getLanguages());
 
-let translatingStream =
-  autoTranslateStream.startWith(false).map(checked => {
-    if (checked) {
-      return inputTextStream.debounce(1000);
+let translatedText =
+  autoTranslate.startWith(false).flatMapLatest(checked => {
+    if (!checked) {
+      return Rx.Observable.merge(submitButtonClick, enterKeyPress);
     } else {
-      return Rx.Observable.merge(submitButtonClickStream, enterKeyStream);
+      return Rx.Observable.merge(inputString.debounce(250), targetLanguage);
     }
   })
-  .switch()
+  .withLatestFrom(inputString, targetLanguage)
+  .flatMapLatest(([e, input, language]) => TranslateService.translateText('en', language, input));
 
-let translationStream =
-  translatingStream
-  .withLatestFrom(targetLanguageStream, _.nthArg(1))
-  .withLatestFrom(inputTextStream)
-  .flatMap(([language, input]) => TranslateService.translateText('en', language, input).delay(1000));
-
-// Subscribers
-let languagesLoadingSubscriber = refreshButtonClickStream.startWith(void 0).subscribe(() => {
-  languageOptions.html(`<option value="">Loading...</option>`);
-  languageOptions.prop('disabled', true);
-});
-
-let languagesLoadedSubscriber = availableLanguagesStream.subscribe(languages => {
-  let choices = languages.map(lang => $(`<option value="${lang.language}">${lang.name}</option>`));
+availableLanguages.subscribe(languages => {
+  let choices = languages.map(x => `<option value="${x.language}">${x.name}</option>`).join("");
   languageOptions.html(choices);
-  languageOptions.prepend(`<option value=""></option>`);
-  languageOptions.prop('disabled', false);
+  languageOptions.prepend('<option value=""></option>');
 });
 
-let translatingSubscriber = translatingStream.subscribe(() => {
-  outputText.html(`<strong>Translating...</strong>`);
+translatedText.subscribe(text => {
+  outputText.html(text);
 });
 
-let translatedSubscriber = translationStream.subscribe(translatedText => {
-  outputText.html(translatedText);
-  inputText.val("");
-});
-
-let autoTranslateSubscriber = autoTranslateStream.subscribe(checked => {
-  submitButton.prop("disabled", checked);
-});
+autoTranslate.subscribe(checked => submitButton.prop('disabled', checked));
